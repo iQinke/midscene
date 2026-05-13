@@ -4,10 +4,15 @@ import { createReportCliCommands } from '@midscene/core';
 import { runToolsCLI } from '@midscene/shared/cli';
 import type { BaseMidsceneTools } from '@midscene/shared/mcp/base-tools';
 import dotenv from 'dotenv';
-import { version } from '../package.json';
+import pkg from '../package.json' with { type: 'json' };
 import { BatchRunner } from './batch-runner';
+import { BatchRunnerVscex } from './batch-runner-vscex';
 import { matchYamlFiles, parseProcessArgs } from './cli-utils';
 import { createConfig, createFilesConfig } from './config-factory';
+
+export { BatchRunnerVscex } from './batch-runner-vscex';
+export type { BatchRunnerConfig } from './batch-runner';
+export type { JsonMessage } from './batch-runner-vscex';
 
 Promise.resolve(
   (async () => {
@@ -23,7 +28,7 @@ Promise.resolve(
         'midscene',
         {
           argv: rawArgs,
-          version,
+          version: pkg.version,
           extraCommands: createReportCliCommands(),
         },
       );
@@ -31,9 +36,12 @@ Promise.resolve(
     }
 
     const { options, path, files: cmdFiles } = await parseProcessArgs();
+    // 👇 3. 关键：提取 json-stream 标志
+    // 注意：yargs 会将 kebab-case 转换为 camelCase，或者直接用字符串索引
+    const isJsonStream = options['json-stream'] === true;
 
-    const welcome = `\nWelcome to @midscene/cli v${version}\n`;
-    console.log(welcome);
+    const welcome = `\nWelcome to @midscene/cli v${pkg.version}\n`;
+    //console.log(welcome);
 
     if (options.url) {
       console.error(
@@ -69,9 +77,9 @@ Promise.resolve(
 
     if (configFile) {
       config = await createConfig(configFile, configOptions);
-      console.log(`   Config file: ${configFile}`);
+      console.log(`Config file: ${configFile}`);
     } else if (cmdFiles && cmdFiles.length > 0) {
-      console.log('   Executing YAML files from --files argument...');
+      console.log('Executing YAML files from --files argument...');
       config = await createFilesConfig(cmdFiles, configOptions);
     } else if (path) {
       const files = await matchYamlFiles(path);
@@ -79,7 +87,7 @@ Promise.resolve(
         console.error(`No yaml files found in ${path}`);
         process.exit(1);
       }
-      console.log('   Executing YAML files...');
+      console.log('Executing YAML files...');
       config = await createFilesConfig(files, configOptions);
     }
 
@@ -90,7 +98,7 @@ Promise.resolve(
 
     const dotEnvConfigFile = join(process.cwd(), '.env');
     if (existsSync(dotEnvConfigFile)) {
-      console.log(`   Env file: ${dotEnvConfigFile}`);
+      console.log(`Env file: ${dotEnvConfigFile}`);
       dotenv.config({
         path: dotEnvConfigFile,
         debug: config.dotenvDebug,
@@ -98,23 +106,23 @@ Promise.resolve(
       });
     }
 
-    const executor = new BatchRunner(config);
+    // 核心分发逻辑：在这里决定使用哪个 Runner
+    let executor;
+    if (isJsonStream) {
+      // 使用专门为插件设计的 Runner
+      executor = new BatchRunnerVscex(config);
+    } else {
+      // 原有逻辑：使用 TTY 终端渲染器
+      executor = new BatchRunner(config);
+    }
 
     await executor.run();
 
     const success = executor.printExecutionSummary();
-
-    if (config.keepWindow) {
-      // hang the process to keep the browser window open
-      setInterval(() => {
-        console.log('browser is still running, use ctrl+c to stop it');
-      }, 5000);
-    } else {
-      if (!success) {
-        process.exit(1);
-      }
-      process.exit(0);
+    if (!success) {
+      process.exit(1);
     }
+    process.exit(0);
   })().catch((e) => {
     console.error(e);
     process.exit(1);

@@ -10,6 +10,7 @@ export default defineConfig({
         },
       },
       format: 'cjs',
+
       // disable default shims for import.meta.url
       shims: {
         cjs: {
@@ -23,6 +24,7 @@ export default defineConfig({
         },
       },
       syntax: 'es2020',
+      bundle: false,
     },
     {
       output: {
@@ -32,15 +34,17 @@ export default defineConfig({
       },
       format: 'esm',
       syntax: 'es2020',
+      bundle: false,
       dts: {
-        bundle: true,
+        bundle: false,
         distPath: 'dist/types',
       },
     },
   ],
   source: {
     entry: {
-      index: 'src/index.ts',
+      //index: 'src/index.ts',
+      utils: 'src/*.ts',
     },
     define: {
       __VERSION__: JSON.stringify(version),

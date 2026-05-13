@@ -10,6 +10,7 @@ import type {
   MidsceneYamlScript,
   MidsceneYamlScriptAgentOpt,
   MidsceneYamlScriptEnv,
+  ScriptPlayerTaskStatus,
 } from '@midscene/core';
 import { createAgent } from '@midscene/core/agent';
 import type { AbstractInterface } from '@midscene/core/device';
@@ -81,6 +82,7 @@ export async function createYamlPlayer(
     page?: Page;
     testId?: string;
   },
+  onTaskStatusChange?: (taskStatus: ScriptPlayerTaskStatus) => void,
 ): Promise<ScriptPlayer<MidsceneYamlScriptEnv>> {
   const yamlScript =
     script || parseYamlScript(readFileSync(file, 'utf-8'), file);
@@ -425,7 +427,7 @@ export async function createYamlPlayer(
         'No valid interface configuration found in the yaml script, should be either "web", "android", "ios", "computer", or "interface"',
       );
     },
-    undefined,
+    onTaskStatusChange,
     file,
   );
 

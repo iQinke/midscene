@@ -7,7 +7,7 @@
     "paths": {
       "@/*": ["./src/*"]
     },
-    "rootDir": ".",
+    "rootDir": "src",
     "declarationDir": "dist/types",
     "types": ["node"]
   },

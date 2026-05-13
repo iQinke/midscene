@@ -84,6 +84,11 @@ Usage:
         type: 'boolean',
         description: `Turn on logging to help debug why certain keys or values are not being set as you expect, default is ${defaultConfig.dotenvDebug}`,
       },
+      // 在这里插入新参数定义
+      'json-stream': {
+        type: 'boolean',
+        description: 'Enable JSON Lines streaming mode for IDE integration',
+      },
     })
     .version('version', 'Show version number', __VERSION__)
     .help()
