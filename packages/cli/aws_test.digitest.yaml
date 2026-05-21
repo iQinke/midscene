@@ -1,0 +1,27 @@
+agent:
+  cache:
+    id: "my-cache-test"
+    strategy: "write-only"
+web:
+  url: https://aws.amazon.com/jp/
+    
+#AWSサイトの問い合わせシナリオテスト
+tasks:
+  - name: 問い合わせページをオープン
+    flow:
+      - aiAction: トップメニューをクリック:お問い合わせ
+      - aiAssert: 页面标题包含:AWSへの連絡
+      - aiAction: 页面向下滚动一屏
+      - aiAction: Click button:セールスサポートをリクエスト
+  
+  - name: 情報入力&送信
+    flow:
+      - aiAction: 向下滚动一屏页面
+      - aiAction: 客户情报输入:ke, qin, qinke@test.test, 9066
+      - aiAction: 工作情报的职业选择:技术者或工程师
+      - aiAction: 向下滚动两屏页面
+      - aiAction: Click SEND button
+      
+  - name: 電話番号検査
+    flow:
+      - aiAssert: Display "Enter a valid phone number" below the phone input field.

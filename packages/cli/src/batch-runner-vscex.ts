@@ -49,7 +49,7 @@ export type JsonMessage =
       error?: string | null;
     }
   | {
-      type: 'test:step:detail';
+      type: 'test:action';
       file: string;
       stepIndex: number;
       stepAction: string;
@@ -382,10 +382,8 @@ class BatchRunnerVscex {
             throw new Error('Cancelled before start');
           }
 
-          // --- ⭐ 新增：定义在 createYamlPlayer 闭包外的变量 ⭐ ---
-          // 这些变量会被 onTaskStatusChange 回调捕获（闭包）
-          let currentFlow: any[] = [];
-          let currentFlowIndex = -1;
+          // 记忆上一次处理的步骤名称，用于去重
+          let lastProcessedStepName: string | null = null;
 
           this.sendJson({ type: 'test:start', file: context.file });
           const testStart = Date.now();
@@ -398,60 +396,52 @@ class BatchRunnerVscex {
               context.executionConfig,
               context.options,
               (taskStatus) => {
-                // --- ⭐ 1. 拦截并发送 Step 详细信息 ⭐ ---
-                // 利用闭包访问 currentFlow 和 currentFlowIndex
-                if (currentFlow.length > 0 && currentFlowIndex >= 0) {
-                  const currentFlowItem = currentFlow[currentFlowIndex];
+                // --- ⭐ 核心修复：直接从 taskStatus 中提取数据 ⭐ ---
+                // taskStatus 本身包含了当前步骤的索引和 flow 列表
+                const stepIndex = taskStatus.currentStep ?? -1;
+                const flow = taskStatus.flow; // 直接使用 taskStatus 自带的 flow
 
-                  this.sendJson({
-                    type: 'test:step:detail', // 专用类型
-                    file: context.file,
-                    stepIndex: currentFlowIndex,
-                    // 尝试提取动作类型，例如 { aiInput: "...", locate: ... }
-                    stepAction: currentFlowItem
-                      ? Object.keys(currentFlowItem)[0]
-                      : 'unknown',
-                    stepData: currentFlowItem, // 发送完整数据
-                  });
-                }
+                // --- ⭐【改进代码】开始 ⭐ ---
+                const currentStepName = taskStatus.name; // 获取当前步骤的名称
 
-                // 确保在发送步骤时，任务没有被取消
-                if (!this.abortController.signal.aborted) {
-                  let duration: number | undefined = undefined;
-                  if (testStart) {
-                    duration = Date.now() - testStart;
-                  }
+                // 1. 仅当步骤名称发生变化时，才输出 TEST:STEP
+                if (currentStepName !== lastProcessedStepName) {
+                  // 发送 TEST:STEP (步骤开始)
                   this.sendJson({
                     type: 'test:step',
                     file: context.file,
-                    step: taskStatus.name,
+                    step: currentStepName,
                     status: taskStatus.status,
-                    duration,
+                    duration: 0,
                     error: taskStatus.error?.message || null,
+                  });
+
+                  // 更新记忆，下次比较用
+                  lastProcessedStepName = currentStepName;
+                }
+                // --- ⭐【改进代码】结束 ⭐ ---
+
+                // --- ⭐ 核心修复：发送 test:action ⭐ ---
+                // 只有当 flow 存在且索引有效时才发送
+                if (
+                  Array.isArray(flow) &&
+                  stepIndex >= 0 &&
+                  stepIndex < flow.length
+                ) {
+                  const currentStepData = flow[stepIndex];
+                  const stepAction =
+                    Object.keys(currentStepData)[0] || 'unknown';
+
+                  this.sendJson({
+                    type: 'test:action',
+                    file: context.file,
+                    stepIndex: stepIndex,
+                    stepAction: stepAction,
+                    stepData: currentStepData,
                   });
                 }
               },
             );
-
-            // --- ⭐ 3. 关键 Hook：重写 Player 的 playTask 方法 ⭐ ---
-            // 这里我们不修改 player.ts 源码，而是 Monkey Patch（猴子补丁）实例的方法
-            // 利用闭包，将当前的 flow 和 index 写入上面定义的变量中
-
-            const originalPlayTask = player.playTask.bind(player);
-            player.playTask = async (taskStatus, agent) => {
-              const { flow } = taskStatus;
-
-              const currentIndex = taskStatus.currentStep ?? 0;
-
-              // 将当前 Task 的 Flow 存入闭包变量
-              currentFlow = flow;
-              currentFlowIndex = currentIndex;
-
-              // 调用原始的 playTask 逻辑
-              // 在 playTask 内部，它会遍历 flow 并执行 debug
-              // 但在 debug 之前，我们已经在上面的回调中发送了 JSON
-              return originalPlayTask(taskStatus, agent);
-            };
 
             const start = Date.now();
             // 包装 player.run()，使其能响应超时或外部取消

@@ -281,9 +281,22 @@ export class ScriptPlayer<T extends MidsceneYamlScriptEnv> {
     const { flow } = taskStatus;
     assert(flow, 'missing flow in task');
 
+    // === 新增：通过 this.taskStatusList 反向查找任务索引 ===
+    const taskIndex = this.taskStatusList.indexOf(taskStatus);
+    if (taskIndex === -1) {
+      throw new Error("Task status not found in player's task list");
+    }
+    // ==================================================
+
     for (const flowItemIndex in flow) {
       const currentStep = Number.parseInt(flowItemIndex, 10);
       taskStatus.currentStep = currentStep;
+
+      // 2. 【新增代码】强制触发回调通知
+      // 这样每一步开始执行前，外部监听器（如 VS Code 插件）都能收到“当前步骤变了”的信号
+      // === 修改：使用查找到的 taskIndex ===
+      this.notifyCurrentTaskStatusChange(taskIndex);
+
       const flowItem = flow[flowItemIndex];
 
       // Skip Finalize action from cache - it's a planning-only marker

@@ -27,7 +27,8 @@
     "test:ai": "AITEST=true vitest --run",
     "test:ai:temp": "AITEST=true BRIDGE_MODE=true vitest tests/bridge.test.ts",
     "start": "node --env-file=.env ./dist/es/index.js ./usecase_flutter_pc.yaml --headed",
-    "startCJS": "node --env-file=.env ./dist/lib/index.cjs ./usecase_flutter_pc.yaml --headed"
+    "startCJS": "node --env-file=.env ./dist/lib/index.cjs ./usecase_flutter_pc.yaml --headed",
+    "startVSCEX": "node --env-file=.env ./dist/es/index.js ./aws_test.digitest.yaml --headed --json-stream"
   },
   "dependencies": {
     "@midscene/android": "workspace:*",
