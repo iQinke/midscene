@@ -79,7 +79,7 @@ Promise.resolve(
       config = await createConfig(configFile, configOptions);
       console.log(`Config file: ${configFile}`);
     } else if (cmdFiles && cmdFiles.length > 0) {
-      console.log('Executing YAML files from --files argument...');
+      //console.log('Executing YAML files from --files argument...');
       config = await createFilesConfig(cmdFiles, configOptions);
     } else if (path) {
       const files = await matchYamlFiles(path);

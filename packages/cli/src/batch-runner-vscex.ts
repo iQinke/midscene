@@ -90,16 +90,8 @@ class BatchRunnerVscex {
   // 👇 新增：用于保存浏览器实例
   private browserInstance: Browser | null = null;
 
-  // 👇 关键点2：消息回调注入，不再依赖 stdout
-  private onMessage: (msg: JsonMessage) => void;
-
-  constructor(
-    config: BatchRunnerConfig,
-    onMessage?: (msg: JsonMessage) => void,
-  ) {
+  constructor(config: BatchRunnerConfig) {
     this.config = config;
-    // 即使插件没传 onMessage，这里也可以给一个空函数，防止报错
-    this.onMessage = onMessage || (() => {});
   }
 
   /**
@@ -107,14 +99,7 @@ class BatchRunnerVscex {
    * 负责将内部状态分发给 插件回调 或 标准输出
    */
   private sendJson(msg: JsonMessage) {
-    // 1. 优先发送给插件（如果有）
-    if (this.onMessage) {
-      this.onMessage(msg);
-    }
-
-    // 2. 如果是纯 CLI 模式，才打印到控制台
     // 注意：在插件模式下，我们通常不希望 console.log 污染 Output Channel
-
     // 使用 process.stdout.write 而不是 console.log，性能更好且不换行混乱
     process.stdout.write(`${JSON.stringify(msg)}\n`);
   }
